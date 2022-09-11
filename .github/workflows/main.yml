@@ -2,15 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [main]
   pull_request:
-    branches: [ master ]
+    branches: [main]
 
   workflow_dispatch:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     if: github.ref == 'refs/heads/master'
@@ -31,7 +30,7 @@ jobs:
         with:
           switches: -avzr --delete
           path: ./*
-          remote_path: /var/www/my-app/
-          remote_host: <host>.compute.amazonaws.com
+          remote_path: /var/www/park-scraper/
+          remote_host: 44.234.199.231.compute.amazonaws.com
           remote_user: ubuntu
           remote_key: "${{ secrets.SSH_PRIVATE_KEY }}"
