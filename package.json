@@ -27,7 +27,9 @@
     "@shared": "dist/shared",
     "@server": "dist/server",
     "@routes": "dist/routes",
-    "@util": "dist/util"
+    "@util": "dist/util",
+    "@models": "dist/models",
+    "src": "dist"
   },
   "engines": {
     "node": ">=8.10.0"
