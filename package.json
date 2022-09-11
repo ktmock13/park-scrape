@@ -1,5 +1,5 @@
 {
-  "name": "@kmock/park-scrape",
+  "name": "park-scrape",
   "version": "0.0.0",
   "scripts": {
     "build": "npx ts-node build.ts",
