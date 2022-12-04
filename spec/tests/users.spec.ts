@@ -1,25 +1,25 @@
-import supertest from 'supertest';
-import StatusCodes from 'http-status-codes';
-import { SuperTest, Test, Response } from 'supertest';
+import supertest, { SuperTest, Test, Response } from 'supertest';
+import { defaultErrMsg } from 'jet-validator';
+import logger from 'jet-logger';
 
-import app from '@server';
-import userRepo from '@repos/user-repo';
-import User, { IUser } from '@models/user-model';
-import { pErr } from '@shared/functions';
-import { p as userPaths } from '@routes/user-router';
+import app from '@src/server';
+import userRepo from '@src/repos/user-repo';
+import User, { IUser } from '@src/models/User';
+import userRoutes from '@src/routes/user-routes';
+import HttpStatusCodes from '@src/declarations/major/HttpStatusCodes';
 import loginAgent from '../support/login-agent';
-import { ParamMissingError, UserNotFoundError } from '@shared/errors';
+import { userNotFoundErr } from '@src/services/user-service';
 
 
 // **** Variables **** //
 
 // Misc
-const usersPath = '/api/users',
-  getUsersPath = `${usersPath}${userPaths.get}`,
-  addUsersPath = `${usersPath}${userPaths.add}`,
-  updateUserPath = `${usersPath}${userPaths.update}`,
-  deleteUserPath = `${usersPath}${userPaths.delete}`,
-  { BAD_REQUEST, CREATED, OK } = StatusCodes;
+const { paths } = userRoutes,
+  usersPath = ('/api' + paths.basePath),
+  getUsersPath = `${usersPath}${paths.get}`,
+  addUsersPath = `${usersPath}${paths.add}`,
+  updateUserPath = `${usersPath}${paths.update}`,
+  deleteUserPath = `${usersPath}${paths.delete}`;
 
 // Dummy users for GET req
 const dummyGetAllUsers = [
@@ -35,32 +35,39 @@ const dummyUserData = {
 
 // Test messages
 const msgs = {
-  getUsersSuccess: `should return a JSON object with all the users and a status code of 
-    "${OK}" if the request was successful.`,
-  getUsersBad: `should return a JSON object containing an error message and a status code of
-    "${BAD_REQUEST}" if the request was unsuccessful.`,
-  addUserSuccess: `should return a status code of "${CREATED}" if the request was successful.`,
-  addUserFailedMissingParam: `should return a JSON object with an error message of 
-    "${ParamMissingError.Msg}" and a status code of "${BAD_REQUEST}" if the user param was 
-    missing.`,
-  addUserFallbackErr: `should return a JSON object with an error message and a status code 
-    of "${BAD_REQUEST}" if the request was unsuccessful.`,
-  updateSuccess: `should return a status code of "${OK}" if the request was successful.`,
-  updateParamMissing: `should return a JSON object with an error message of 
-    "${ParamMissingError.Msg}" and a status code of "${BAD_REQUEST}" if the user param was 
-    missing.`,
-  updateUserNotFound: `should return a JSON object with the error message of 
-    ${UserNotFoundError.Msg} and a status code of "${UserNotFoundError.HttpStatus}" if the id 
-    was not found.`,
-  updateFallbackErr: `should return a JSON object with an error message and a status code of 
-    "${BAD_REQUEST}" if the request was unsuccessful.`,
-  deleteSuccessful: `should return a status code of "${OK}" if the request was successful.`,
-  deleteUserNotFound: `should return a JSON object with the error message of 
-    ${UserNotFoundError.Msg} and a status code of "${UserNotFoundError.HttpStatus}" if the id was 
-    not found.`,
-  deleteFallbackErr: `should return a JSON object with an error message and a status code of 
-    "${BAD_REQUEST}" if the request was unsuccessful.`,
-};
+  getUsersSuccess: 'should return a JSON object with all the users and a ' +
+    `status code of "${HttpStatusCodes.OK}" if the request was successful.`,
+  getUsersBad: 'should return a JSON object containing an error message ' +
+    `and a status code of "${HttpStatusCodes.BAD_REQUEST}" if the request ` + 
+    'was unsuccessful.',
+  addUserSuccess: 'should return a status code of ' + 
+    `"${HttpStatusCodes.CREATED}" if the request was successful.`,
+  addUserFailedMissingParam: 'should return a JSON object with an error ' +
+    `message of "${defaultErrMsg}" and a status code of ` +
+    `"${HttpStatusCodes.BAD_REQUEST}" if the user param was missing.`,
+  addUserFallbackErr: 'should return a JSON object with an error message ' + 
+    `and a status code of "${HttpStatusCodes.BAD_REQUEST}" if the request ` + 
+    'was unsuccessful.',
+  updateSuccess: `should return a status code of "${HttpStatusCodes.OK}" if ` + 
+    'the request was successful.',
+  updateParamMissing: 'should return a JSON object with an error message ' +
+    `of "${defaultErrMsg}" and a status code of ` + 
+    `"${HttpStatusCodes.BAD_REQUEST}" if the user param was missing.`,
+  updateUserNotFound: 'should return a JSON object with the error message ' +
+    `of "${userNotFoundErr}" and a status code of ` +
+    `"${HttpStatusCodes.NOT_FOUND}" if the id was not found.`,
+  updateFallbackErr: 'should return a JSON object with an error message ' +
+    `and a status code of "${HttpStatusCodes.BAD_REQUEST}" if the request ` + 
+    'was unsuccessful.',
+  deleteSuccessful: `should return a status code of "${HttpStatusCodes.OK}" ` + 
+    'if the request was successful.',
+  deleteUserNotFound: 'should return a JSON object with the error message ' +
+    `of "${userNotFoundErr}" and a status code of ` +
+    `"${HttpStatusCodes.NOT_FOUND}" if the id was not found.`,
+  deleteFallbackErr: 'should return a JSON object with an error message ' +
+    `and a status code of "${HttpStatusCodes.BAD_REQUEST}" if the request ` + 
+    'was unsuccessful.',
+} as const;
 
 
 // **** Types **** //
@@ -98,8 +105,8 @@ describe('user-router', () => {
       spyOn(userRepo, 'getAll').and.returnValue(ret);
       // Call API
       callApi().end((err: Error, res: Response) => {
-        pErr(err);
-        expect(res.status).toBe(OK);
+        !!err && logger.err(err);
+        expect(res.status).toBe(HttpStatusCodes.OK);
         // Caste instance-objects to 'User' objects
         const respUsers = res.body.users;
         const retUsers = respUsers.map((user: IUser) => User.copy(user));
@@ -116,8 +123,8 @@ describe('user-router', () => {
       // Call API
       callApi()
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(BAD_REQUEST);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.BAD_REQUEST);
           expect(res.body.error).toBe(errMsg);
           done();
         });
@@ -139,8 +146,8 @@ describe('user-router', () => {
       spyOn(userRepo, 'add').and.returnValue(Promise.resolve());
       callApi(dummyUserData)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(CREATED);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.CREATED);
           expect(res.body.error).toBeUndefined();
           done();
         });
@@ -150,9 +157,9 @@ describe('user-router', () => {
     it(msgs.addUserFailedMissingParam, (done) => {
       callApi({})
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(BAD_REQUEST);
-          expect(res.body.error).toBe(ParamMissingError.Msg);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.BAD_REQUEST);
+          expect(res.body.error).toBe(defaultErrMsg);
           done();
         });
     });
@@ -164,8 +171,8 @@ describe('user-router', () => {
       // Call API
       callApi(dummyUserData)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(BAD_REQUEST);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.BAD_REQUEST);
           expect(res.body.error).toBe(errMsg);
           done();
         });
@@ -187,8 +194,8 @@ describe('user-router', () => {
       // Call api
       callApi(dummyUserData)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(OK);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.OK);
           expect(res.body.error).toBeUndefined();
           done();
         });
@@ -198,9 +205,9 @@ describe('user-router', () => {
     it(msgs.updateParamMissing, (done) => {
       callApi({})
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(BAD_REQUEST);
-          expect(res.body.error).toBe(ParamMissingError.Msg);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.BAD_REQUEST);
+          expect(res.body.error).toBe(defaultErrMsg);
           done();
         });
     });
@@ -209,9 +216,9 @@ describe('user-router', () => {
     it(msgs.updateUserNotFound, (done) => {
       callApi(dummyUserData)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(UserNotFoundError.HttpStatus);
-          expect(res.body.error).toBe(UserNotFoundError.Msg);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.NOT_FOUND);
+          expect(res.body.error).toBe(userNotFoundErr);
           done();
         });
     });
@@ -224,8 +231,8 @@ describe('user-router', () => {
       // Call API
       callApi(dummyUserData)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(BAD_REQUEST);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.BAD_REQUEST);
           expect(res.body.error).toBe(updateErrMsg);
           done();
         });
@@ -248,8 +255,8 @@ describe('user-router', () => {
       // Call api
       callApi(5)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(OK);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.OK);
           expect(res.body.error).toBeUndefined();
           done();
         });
@@ -259,9 +266,20 @@ describe('user-router', () => {
     it(msgs.deleteUserNotFound, (done) => {
       callApi(-1)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(UserNotFoundError.HttpStatus);
-          expect(res.body.error).toBe(UserNotFoundError.Msg);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.NOT_FOUND);
+          expect(res.body.error).toBe(userNotFoundErr);
+          done();
+        });
+    });
+
+    // Delete, not a valid number error
+    it(msgs.deleteUserNotFound, (done) => {
+      callApi('horse' as unknown as number)
+        .end((err: Error, res: Response) => {
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.BAD_REQUEST);
+          expect(res.body.error).toBe(defaultErrMsg);
           done();
         });
     });
@@ -274,8 +292,8 @@ describe('user-router', () => {
       // Call API
       callApi(1)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(BAD_REQUEST);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.BAD_REQUEST);
           expect(res.body.error).toBe(deleteErrMsg);
           done();
         });

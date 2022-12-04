@@ -66,33 +66,16 @@
     "skipLibCheck": true,                     /* Skip type checking of declaration files. */
     "forceConsistentCasingInFileNames": true,  /* Disallow inconsistently-cased references to the same file. */
     "paths": {
-      "@repos/*": [
-        "src/repos/*"
+      "@src/*": [
+        "src/*"
       ],
-      "@models/*": [
-        "src/models/*"
-      ],
-      "@shared/*": [
-        "src/shared/*"
-      ],
-      "@server": [
-        "src/server"
-      ],
-      "@services/*": [
-        "src/services/*"
-      ],
-      "@routes/*": [
-        "src/routes/*"
-      ],
-      "@util/*": [
-        "src/util/*"
-      ]
     },
     "useUnknownInCatchVariables": false
   },
   "include": [
     "src/**/*.ts",
-    "spec/**/*.ts"
+    "spec/**/*.ts",
+    "build.ts"
   ],
   "exclude": [
     "src/public/"

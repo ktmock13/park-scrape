@@ -1,16 +1,22 @@
-// **** Types **** //
+import { TAll } from 'jet-validator';
+
+
+// **** Variables **** //
 
 export enum UserRoles {
   Standard,
   Admin,
 }
 
+
+// **** Types **** //
+
 export interface IUser {
   id: number;
   name: string;
   email: string;
-  pwdHash: string;
-  role: UserRoles;
+  pwdHash?: string;
+  role?: UserRoles;
 }
 
 
@@ -47,10 +53,25 @@ function copy(user: IUser): IUser {
   };
 }
 
+/**
+ * See if an object is an instance of User.
+ */
+function instanceOf(arg: TAll): boolean {
+  return (
+    !!arg &&
+    typeof arg === 'object' &&
+    'id' in arg &&
+    'email' in arg &&
+    'name' in arg &&
+    'role' in arg
+  );
+}
+
 
 // **** Export default **** //
 
 export default {
   new: _new,
   copy,
-};
+  instanceOf,
+} as const;

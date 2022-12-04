@@ -14,11 +14,12 @@
   },
   "rules": {
     "max-len": [
-      "error",
+      "warn",
       {
-        "code": 100
+        "code": 80
       }
     ],
+    "comma-dangle": ["warn", "always-multiline"],
     "no-console": 1,
     "no-extra-boolean-cast": 0,
     "semi": 1,

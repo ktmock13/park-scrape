@@ -1,8 +1,18 @@
-import bcrypt from 'bcrypt';
+import userRepo from '@src/repos/user-repo';
+import jwtUtil from '@src/util/jwt-util';
+import pwdUtil from '@src/util/pwd-util';
+import HttpStatusCodes from '@src/declarations/major/HttpStatusCodes';
+import { RouteError } from '@src/declarations/classes';
+import { tick } from '@src/declarations/functions';
 
-import userRepo from '@repos/user-repo';
-import jwtUtil from '@util/jwt-util';
-import { UnauthorizedError } from '@shared/errors';
+
+// **** Variables **** //
+
+// Errors
+export const errors = {
+  unauth: 'Unauthorized',
+  emailNotFound: (email: string) => `User with email "${email}" not found`,
+} as const;
 
 
 // **** Functions **** //
@@ -10,16 +20,25 @@ import { UnauthorizedError } from '@shared/errors';
 /**
  * Login a user.
  */
-async function login(email: string, password: string): Promise<string> {
+async function getJwt(email: string, password: string): Promise<string> {
   // Fetch user
   const user = await userRepo.getOne(email);
   if (!user) {
-    throw new UnauthorizedError();
+    throw new RouteError(
+      HttpStatusCodes.UNAUTHORIZED,
+      errors.emailNotFound(email),
+    );
   }
   // Check password
-  const pwdPassed = await bcrypt.compare(password, user.pwdHash);
+  const hash = (user.pwdHash ?? '');
+  const pwdPassed = await pwdUtil.compare(password, hash);
   if (!pwdPassed) {
-    throw new UnauthorizedError();
+    // If password failed, wait 500ms this will increase security
+    await tick(500);
+    throw new RouteError(
+      HttpStatusCodes.UNAUTHORIZED, 
+      errors.unauth,
+    );
   }
   // Setup Admin Cookie
   return jwtUtil.sign({
@@ -34,5 +53,5 @@ async function login(email: string, password: string): Promise<string> {
 // **** Export default **** //
 
 export default {
-  login,
+  getJwt,
 } as const;

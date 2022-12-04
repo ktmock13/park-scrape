@@ -1,43 +1,46 @@
-import bcrypt from 'bcrypt';
-import StatusCodes from 'http-status-codes';
 import supertest, { SuperTest, Test, Response } from 'supertest';
+import logger from 'jet-logger';
 
-import app from '@server';
-import userRepo from '@repos/user-repo';
-import envVars from '@shared/env-vars';
-import User, { UserRoles } from '@models/user-model';
-import { p as paths } from '@routes/auth-router';
-import { pErr } from '@shared/functions';
-import { pwdSaltRounds } from 'spec/support/login-agent';
-import { UnauthorizedError } from '@shared/errors';
+import app from '@src/server';
+import authRoutes from '@src/routes/auth-routes';
+import userRepo from '@src/repos/user-repo';
+import pwdUtil from '@src/util/pwd-util';
+import EnvVars from '@src/declarations/major/EnvVars';
+import HttpStatusCodes from '@src/declarations/major/HttpStatusCodes';
+import User, { UserRoles } from '@src/models/User';
+import { errors as authServiceErrs } from '@src/services/auth-service';
 
 
 // **** Variables **** //
 
 // Misc
-const authPath = '/api/auth',
+const { paths } = authRoutes,
+  authPath = ('/api' + paths.basePath),
   loginPath = `${authPath}${paths.login}`,
-  logoutPath = `${authPath}${paths.logout}`,
-  { BAD_REQUEST, OK, UNAUTHORIZED } = StatusCodes;
+  logoutPath = `${authPath}${paths.logout}`;
 
 // Test message
 const msgs = {
-  goodLogin: `should return a response with a status of ${OK} and a cookie with a jwt if the login
-    was successful.`,
-  emailNotFound: `should return a response with a status of ${UNAUTHORIZED} and a json with the 
-    "error ${UnauthorizedError.Msg}" if the email was not found.`,
-  pwdFailed: `should return a response with a status of ${UNAUTHORIZED} and a json with the error
-    "${UnauthorizedError.Msg}" if the password failed.`,
-  fallbackErr: `should return a response with a status of ${BAD_REQUEST} and a json with an error
-    for all other bad responses.`,
-  goodLogout: `should return a response with a status of ${OK}.`,
+  goodLogin: 'should return a response with a status of ' + 
+    `"${HttpStatusCodes.OK}" and a cookie with a jwt if the login was ` + 
+    'successful.',
+  emailNotFound: 'should return a response with a status of ' + 
+    `"${HttpStatusCodes.UNAUTHORIZED}" and a json with an error message if ` + 
+    'the email was not found.',
+  pwdFailed: 'should return a response with a status of ' + 
+    `"${HttpStatusCodes.UNAUTHORIZED}" and a json with the error ` + 
+    `"${authServiceErrs.unauth}" if the password failed.`,
+  fallbackErr: 'should return a response with a status of ' + 
+    `"${HttpStatusCodes.BAD_REQUEST}" and a json with an error for all ` + 
+    'other bad responses.',
+  goodLogout: `should return a response with a status of ${HttpStatusCodes.OK}`,
 } as const;
 
 // Login credentials
 const loginCreds = {
   email: 'jsmith@gmail.com',
   password: 'Password@1',
-} as const; 
+} as const;
 
 
 // **** Types **** //
@@ -67,16 +70,16 @@ describe('auth-router', () => {
     // Good login
     it(msgs.goodLogin, (done) => {
       const role = UserRoles.Standard;
-      const pwdHash = hashPwd(loginCreds.password);
+      const pwdHash = pwdUtil.hashSync(loginCreds.password);
       const loginUser = User.new('john smith', loginCreds.email, role, pwdHash);
       spyOn(userRepo, 'getOne').and.returnValue(Promise.resolve(loginUser));
       // Call API
       callApi(loginCreds)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(OK);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.OK);
           const cookie = res.headers['set-cookie'][0];
-          expect(cookie).toContain(envVars.cookieProps.key);
+          expect(cookie).toContain(EnvVars.cookieProps.key);
           done();
         });
     });
@@ -86,9 +89,10 @@ describe('auth-router', () => {
       spyOn(userRepo, 'getOne').and.returnValue(Promise.resolve(null));
       callApi(loginCreds)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(UNAUTHORIZED);
-          expect(res.body.error).toBe(UnauthorizedError.Msg);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.UNAUTHORIZED);
+          const errMsg = authServiceErrs.emailNotFound(loginCreds.email);
+          expect(res.body.error).toBe(errMsg);
           done();
         });
     });
@@ -96,15 +100,15 @@ describe('auth-router', () => {
     // Password failed
     it(msgs.pwdFailed, (done) => {
       const role = UserRoles.Standard;
-      const pwdHash = hashPwd('bad password');
+      const pwdHash = pwdUtil.hashSync('bad password');
       const loginUser = User.new('john smith', loginCreds.email, role, pwdHash);
       spyOn(userRepo, 'getOne').and.returnValue(Promise.resolve(loginUser));
       // Call API
       callApi(loginCreds)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(UNAUTHORIZED);
-          expect(res.body.error).toBe(UnauthorizedError.Msg);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.UNAUTHORIZED);
+          expect(res.body.error).toBe(authServiceErrs.unauth);
           done();
         });
     });
@@ -114,8 +118,8 @@ describe('auth-router', () => {
       spyOn(userRepo, 'getOne').and.throwError('Database query failed.');
       callApi(loginCreds)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(BAD_REQUEST);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.BAD_REQUEST);
           expect(res.body.error).toBeTruthy();
           done();
         });
@@ -129,17 +133,10 @@ describe('auth-router', () => {
     it(msgs.goodLogout, (done) => {
       agent.get(logoutPath)
         .end((err: Error, res: Response) => {
-          pErr(err);
-          expect(res.status).toBe(OK);
+          !!err && logger.err(err);
+          expect(res.status).toBe(HttpStatusCodes.OK);
           done();
         });
     });
   });
 });
-
-
-// **** Helper functions **** //
-
-function hashPwd(pwd: string) {
-  return bcrypt.hashSync(pwd, pwdSaltRounds);
-}

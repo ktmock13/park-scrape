@@ -1,6 +1,12 @@
-import userRepo from '@repos/user-repo';
-import { IUser } from '@models/user-model';
-import { UserNotFoundError } from '@shared/errors';
+import userRepo from '@src/repos/user-repo';
+import { IUser } from '@src/models/User';
+import { RouteError } from '@src/declarations/classes';
+import HttpStatusCodes from '@src/declarations/major/HttpStatusCodes';
+
+
+// **** Variables **** //
+
+export const userNotFoundErr = 'User not found';
 
 
 // **** Functions **** //
@@ -25,8 +31,12 @@ function addOne(user: IUser): Promise<void> {
 async function updateOne(user: IUser): Promise<void> {
   const persists = await userRepo.persists(user.id);
   if (!persists) {
-    throw new UserNotFoundError();
+    throw new RouteError(
+      HttpStatusCodes.NOT_FOUND,
+      userNotFoundErr,
+    );
   }
+  // Return user
   return userRepo.update(user);
 }
 
@@ -36,8 +46,12 @@ async function updateOne(user: IUser): Promise<void> {
 async function _delete(id: number): Promise<void> {
   const persists = await userRepo.persists(id);
   if (!persists) {
-    throw new UserNotFoundError();
+    throw new RouteError(
+      HttpStatusCodes.NOT_FOUND,
+      userNotFoundErr,
+    );
   }
+  // Delete user
   return userRepo.delete(id);
 }
 
