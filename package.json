@@ -32,7 +32,7 @@
     "src": "dist"
   },
   "engines": {
-    "node": "16"
+    "node": ">=8.10.0"
   },
   "dependencies": {
     "bcrypt": "^5.0.1",
